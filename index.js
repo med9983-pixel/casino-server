@@ -5,43 +5,37 @@ const cors = require("cors");
 
 const app = express();
 app.use(cors());
-app.use(express.json());
 
-// صفحة رئيسية (مهم)
+// ✅ رد سريع جداً (مهم لـ Railway)
 app.get("/", (req, res) => {
-  res.send("🚀 Crash Game Server is Running");
+  res.status(200).send("OK");
 });
 
 const server = http.createServer(app);
 
+// مهم: إعداد Socket.IO بشكل متوافق
 const io = new Server(server, {
-  cors: { origin: "*" }
+  cors: { origin: "*" },
+  transports: ["websocket", "polling"]
 });
 
-// 🔥 العداد العالمي
 let globalCounter = 0;
 
 io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+  console.log("User connected");
 
-  // إرسال القيمة الحالية
   socket.emit("counter", globalCounter);
 
-  // زيادة العداد
   socket.on("increment", () => {
     globalCounter++;
     io.emit("counter", globalCounter);
-    console.log("Counter:", globalCounter);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
   });
 });
 
-// ❗ مهم لـ Railway
+// ❗ مهم جداً
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, () => {
+// ❗ اجعل السيرفر يستمع على 0.0.0.0
+server.listen(PORT, "0.0.0.0", () => {
   console.log("Server running on port " + PORT);
 });
