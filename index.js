@@ -6,17 +6,19 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
-// ✅ رد سريع جداً (مهم لـ Railway)
+// ✅ مهم: رد سريع جداً
 app.get("/", (req, res) => {
-  res.status(200).send("OK");
+  res.send("OK");
 });
 
+// إنشاء السيرفر
 const server = http.createServer(app);
 
-// مهم: إعداد Socket.IO بشكل متوافق
+// Socket.IO
 const io = new Server(server, {
-  cors: { origin: "*" },
-  transports: ["websocket", "polling"]
+  cors: {
+    origin: "*"
+  }
 });
 
 let globalCounter = 0;
@@ -32,10 +34,9 @@ io.on("connection", (socket) => {
   });
 });
 
-// ❗ مهم جداً
+// 🔥 أهم سطرين
 const PORT = process.env.PORT || 3000;
 
-// ❗ اجعل السيرفر يستمع على 0.0.0.0
 server.listen(PORT, "0.0.0.0", () => {
   console.log("Server running on port " + PORT);
 });
