@@ -6,35 +6,61 @@ const cors = require("cors");
 const app = express();
 app.use(cors());
 
-// ✅ مهم: رد سريع جداً
+// اختبار السيرفر
 app.get("/", (req, res) => {
   res.send("OK");
 });
 
-// إنشاء السيرفر
 const server = http.createServer(app);
 
-// Socket.IO
 const io = new Server(server, {
   cors: {
     origin: "*"
   }
 });
 
-let globalCounter = 0;
+// 🔥 متغيرات اللعبة
+let multiplier = 1.00;
+let isRunning = false;
 
+// عند اتصال مستخدم
 io.on("connection", (socket) => {
   console.log("User connected");
-
-  socket.emit("counter", globalCounter);
-
-  socket.on("increment", () => {
-    globalCounter++;
-    io.emit("counter", globalCounter);
-  });
 });
 
-// 🔥 أهم سطرين
+// 🔥 تشغيل لعبة الكراش
+function startGame() {
+  multiplier = 1.00;
+  isRunning = true;
+
+  console.log("Game Started");
+
+  io.emit("gameStart");
+
+  const interval = setInterval(() => {
+    multiplier += 0.05;
+
+    io.emit("multiplier", multiplier.toFixed(2));
+
+    // احتمال الانفجار
+    if (Math.random() < 0.02) {
+      clearInterval(interval);
+      isRunning = false;
+
+      console.log("CRASH at:", multiplier.toFixed(2));
+
+      io.emit("crash", multiplier.toFixed(2));
+
+      // إعادة الجولة بعد 3 ثواني
+      setTimeout(startGame, 3000);
+    }
+  }, 100);
+}
+
+// بدء أول لعبة
+startGame();
+
+// تشغيل السيرفر
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, "0.0.0.0", () => {
