@@ -11,7 +11,11 @@ app.get("/", (req, res) => res.send("OK"));
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
-// 🎯 نقاط الانفجار
+let fakePlayers = [];
+let betCount = 0;
+let totalBets = 0;
+let totalProfit = 0;
+
 const crashList = [
   1.12, 1.45, 2.21, 1.38, 1.54, 1.99, 2.44, 2.40,
   1.32, 1.58, 2.11, 2.37, 3.11, 4.02, 4.44,
@@ -20,43 +24,45 @@ const crashList = [
 
 let index = 0;
 
-let fakePlayers = [];
-let betCount = 0;
-let totalBets = 0;
-let totalProfit = 0;
-
-// 🎲 توليد لاعبين
+// 🎯 توليد لاعبين
 function generatePlayers() {
   fakePlayers = [];
 
-  let count = random(6000, 12000);
-  betCount = count;
-
+  betCount = random(6000, 12000);
   totalBets = random(15000, 22000);
   totalProfit = 0;
 
   for (let i = 0; i < 40; i++) {
+
+    let id = random(10000000, 99999999).toString();
+    let user = id.substring(0, 5) + "**";
+
+    let bet = randomFloat(10, 900);
+    let cashout = randomFloat(1.2, 20);
+
     fakePlayers.push({
-      user: "user_" + random(1000, 9999),
-      bet: random(5, 200),
-      cashout: (Math.random() * 20 + 1).toFixed(2),
+      user,
+      bet,
+      cashout,
       profit: 0,
       cashed: false
     });
   }
+
+  // 🔥 ترتيب من الأعلى للأقل
+  fakePlayers.sort((a, b) => b.bet - a.bet);
 }
 
-// ⏳ عداد طبيعي (بدون تسريع)
+// ⏳ العد التنازلي
 function startCountdown() {
-  let time = 7;
 
+  let time = 7;
   generatePlayers();
 
   const interval = setInterval(() => {
 
-    // 🔥 زيادة تدريجية ناعمة
-    betCount += random(50, 120);
-    totalBets += random(200, 600);
+    betCount += random(80, 150);
+    totalBets += random(300, 800);
 
     io.emit("stats", {
       betCount,
@@ -87,7 +93,6 @@ function startGame() {
 
   const interval = setInterval(() => {
 
-    // ⚡ سرعة واقعية
     if (multiplier < 2) multiplier += 0.03;
     else if (multiplier < 5) multiplier += 0.05;
     else if (multiplier < 10) multiplier += 0.1;
@@ -95,12 +100,16 @@ function startGame() {
 
     multiplier = parseFloat(multiplier.toFixed(2));
 
-    // 🎯 سحب تدريجي طبيعي
     fakePlayers.forEach(p => {
       if (!p.cashed && multiplier >= p.cashout) {
-        p.cashed = true;
-        p.profit = p.bet * p.cashout;
-        totalProfit += p.profit;
+
+        if (Math.random() > 0.2) {
+
+          p.cashed = true;
+
+          p.profit = parseFloat((p.bet * p.cashout).toFixed(2));
+          totalProfit += p.profit;
+        }
       }
     });
 
@@ -114,7 +123,6 @@ function startGame() {
 
     io.emit("history", fakePlayers.slice(0, 30));
 
-    // 💥 انفجار
     if (multiplier >= crashPoint) {
       clearInterval(interval);
 
@@ -124,14 +132,16 @@ function startGame() {
     }
 
   }, 100);
-
 }
 
 function random(min, max) {
   return Math.floor(Math.random() * (max - min) + min);
 }
 
-// 🚀 تشغيل
+function randomFloat(min, max) {
+  return parseFloat((Math.random() * (max - min) + min).toFixed(2));
+}
+
 startCountdown();
 
 const PORT = process.env.PORT || 3000;
