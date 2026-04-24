@@ -14,7 +14,7 @@ const io = new Server(server, {
   cors: { origin: "*" }
 });
 
-// 🎯 الانفجارات
+// 🎯 قائمة الانفجارات
 const crashList = [
   1.05, 1.12, 1.08, 1.45, 2.21, 1.38, 1.54, 1.99,
   2.44, 2.40, 3.11, 4.02, 4.44, 4.49,
@@ -36,6 +36,10 @@ function random(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
+function randomFloat(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
 // 👥 توليد اللاعبين
 function generatePlayers() {
 
@@ -46,15 +50,24 @@ function generatePlayers() {
   for (let i = 0; i < count; i++) {
 
     let user = "******" + random(10, 99);
-
     let bet = (random(10, 900)).toFixed(2);
+
+    // 🎯 توزيع احترافي لنقطة السحب
+    let r = Math.random();
+    let target;
+
+    if (r < 0.40) target = randomFloat(1.1, 2.5);      // بدري
+    else if (r < 0.70) target = randomFloat(2.5, 6);   // متوسط
+    else if (r < 0.90) target = randomFloat(6, 15);    // عالي
+    else target = randomFloat(15, 35);                 // نادر 🔥
 
     fakePlayers.push({
       user,
       bet,
       chance: "-",
       profit: "0.00",
-      cashed: false
+      cashed: false,
+      target: parseFloat(target.toFixed(2))
     });
   }
 
@@ -76,11 +89,10 @@ function startCountdown() {
 
   const interval = setInterval(() => {
 
-    // زيادة طبيعية
     betCount += random(80, 150);
     totalBets += random(300, 800);
 
-    // ظهور تدريجي
+    // 👇 ظهور تدريجي
     visibleCount += random(2, 5);
     if (visibleCount > fakePlayers.length) {
       visibleCount = fakePlayers.length;
@@ -92,7 +104,6 @@ function startCountdown() {
       totalProfit
     });
 
-    // 🔥 فقط جزء من اللاعبين يظهر
     io.emit("history", fakePlayers.slice(0, visibleCount));
 
     io.emit("countdown", time);
@@ -121,7 +132,7 @@ function startGame() {
 
   const interval = setInterval(() => {
 
-    // سرعة المضاعف
+    // 🎯 سرعة المضاعف
     if (multiplier < 3) multiplier += 0.02;
     else if (multiplier < 10) multiplier += 0.05;
     else if (multiplier < 20) multiplier += 0.1;
@@ -129,36 +140,25 @@ function startGame() {
 
     multiplier = parseFloat(multiplier.toFixed(2));
 
-    // 🎯 السحب (واقعي)
+    // 🔥 السحب الحقيقي (حسب target)
     fakePlayers.forEach(p => {
 
-      if (!p.cashed) {
+      if (!p.cashed && multiplier >= p.target) {
 
-        let chance = Math.random();
+        p.cashed = true;
+        p.chance = p.target.toFixed(2) + "x";
 
-        if (
-          (multiplier > 1.5 && chance < 0.05) ||
-          (multiplier > 2 && chance < 0.08) ||
-          (multiplier > 3 && chance < 0.12) ||
-          (multiplier > 5 && chance < 0.2) ||
-          (multiplier > 10 && chance < 0.3) ||
-          (multiplier > 20 && chance < 0.4)
-        ) {
+        let profit = parseFloat(p.bet) * p.target;
+        profit = Math.floor(profit * 100) / 100;
 
-          p.cashed = true;
-          p.chance = multiplier.toFixed(2) + "x";
+        p.profit = profit.toFixed(2);
 
-          let profit = parseFloat(p.bet) * multiplier;
-          profit = Math.floor(profit * 100) / 100;
-
-          p.profit = profit.toFixed(2);
-
-          totalProfit += profit;
-        }
+        totalProfit += profit;
       }
+
     });
 
-    // 🔥 ترتيب ثابت (مهم جداً)
+    // 🔥 ترتيب ثابت
     fakePlayers.sort((a, b) => parseFloat(b.bet) - parseFloat(a.bet));
 
     io.emit("multiplier", multiplier);
@@ -169,7 +169,7 @@ function startGame() {
       totalProfit: Math.floor(totalProfit)
     });
 
-    // 🔥 نفس اللاعبين (بدون حذف)
+    // 🔥 نفس اللاعبين (لا حذف ولا إضافة)
     io.emit("history", fakePlayers);
 
     // 💥 الانفجار
@@ -185,7 +185,6 @@ function startGame() {
       });
 
       io.emit("crash", crashPoint);
-
       io.emit("history", fakePlayers);
 
       setTimeout(startCountdown, 3000);
